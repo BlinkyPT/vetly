@@ -1,139 +1,191 @@
-# Vetly — handover (donation model)
+# Vetly — handover (Phase 2 complete)
+
+## Where we are
+
+**Three commits pushed** to https://github.com/BlinkyPT/vetly:
+
+1. Initial scaffold (donation model, Chrome MV3 extension, Next.js dashboard, Supabase schema, Stripe donations, Vercel AI Gateway).
+2. BYOK Option B — privacy-first direct-to-Anthropic mode in the extension.
+3. Phase 2 — Vetly-as-a-website: domain browser, public URL assessment, permalinks, methodology, transparency, explore, disputes.
+
+Total code: ~110 files, roughly 4,500 lines.
 
 ## What I've already done for you
 
-- **Code**: full scaffold, 80 files — monorepo, Chrome MV3 extension with shadow-DOM badge injection, Next.js 16 web app, Supabase schema + RLS, Stripe donation checkout, Vercel AI Gateway integration, Chrome Web Store listing copy, privacy policy.
-- **GitHub**: repo created at https://github.com/BlinkyPT/vetly, two commits pushed.
-- **Vercel**: project `aandj/vetly` created and linked to the GitHub repo. Auto-deploys on every push to `main`. Root-level `vercel.ts` tells it this is a monorepo with the Next.js app in `web/`.
-- **Donation pivot**: no paid tier. All features free. Stripe Checkout now runs in one-off `payment` mode (default) or `subscription` mode for monthly supporters — but nothing is gated behind payment. Rate limit of 50 deep assessments/day per device is a cost-protection measure, not a paywall.
+- GitHub repo created + code pushed.
+- Vercel project `aandj/vetly` created + linked to the GitHub repo. Auto-deploys on every push to `main`.
+- Monorepo-aware `vercel.ts` at root so Vercel knows the Next.js app is in `web/`.
+- Three database migrations in `supabase/migrations/` ready to paste in.
+- One-shot bootstrap script at `scripts/bootstrap.sh` that installs deps + syncs env vars to Vercel + deploys.
+- Chrome Web Store listing copy.
+- Privacy policy.
 
-## What I can't do on your behalf (and why)
+## What I can't do on your behalf
 
-Three things genuinely require you, not code, to sign off on:
+Three short, copy-paste tasks. Total ~12 minutes:
 
-| | What I need | Why I can't do it |
+| | Task | URL |
 |---|---|---|
-| 1 | A fresh **Supabase project** called `vetly` | Needs you clicking "New project" in your Supabase dashboard; project-creation API keys are scoped to you, not me. |
-| 2 | A **Stripe test secret key** + **webhook signing secret** | Stripe requires legal identity verification on the account owner — not bypassable. |
-| 3 | A **Vercel AI Gateway API key** | Personal key, scoped to your Vercel account. |
-
-Optional: **Google OAuth** (only if you want Google sign-in as well as email). Email sign-up works without it.
-
-Your total clicking: **about 10 minutes**, all copy-paste.
+| 1 | Create a fresh Supabase project called `vetly` | https://supabase.com/dashboard |
+| 2 | Grab Stripe **test** keys + create a webhook | https://dashboard.stripe.com/test/apikeys |
+| 3 | Grab a Vercel AI Gateway API key | https://vercel.com/dashboard → AI |
 
 ---
 
-## The 10-minute checklist
+## The 12-minute checklist
 
-### (1) Supabase — ~4 min
+### (1) Supabase — ~5 min
 
-1. Go to https://supabase.com/dashboard.
-2. Click **New project**. Name it `vetly`. Pick any region near the UK (e.g. London). Set a strong DB password and save it in 1Password.
-3. Wait ~1 min for the project to provision.
-4. In the left sidebar: **SQL Editor** → **+ New query**.
-5. Open `supabase/migrations/0001_init.sql` from this repo, copy the whole file, paste it into the SQL editor, click **Run**. Repeat with `0002_seed_domains.sql`.
-6. Left sidebar: **Project Settings → API**. Copy three values into `.env.local` (see section below):
+1. https://supabase.com/dashboard → **New project** → name `vetly`, region near UK (London), strong DB password saved in 1Password.
+2. Wait ~1 min for provisioning.
+3. Left sidebar → **SQL Editor** → **+ New query**. Paste and run each of these in order:
+   - `supabase/migrations/0001_init.sql`
+   - `supabase/migrations/0002_seed_domains.sql`
+   - `supabase/migrations/0003_public_and_disputes.sql`  ← **new this round**
+4. Left sidebar → **Project Settings → API**. Into `.env.local`:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon / public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - service_role key (click to reveal) → `SUPABASE_SERVICE_ROLE_KEY`
-7. Left sidebar: **Authentication → Providers → Email**. Toggle off "Confirm email" for dev ease (you can re-enable later).
+   - `anon` / `public` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `service_role` key (click to reveal) → `SUPABASE_SERVICE_ROLE_KEY`
+5. Left sidebar → **Authentication → Providers → Email** → toggle off "Confirm email" for now (re-enable in prod).
 
-### (2) Vercel AI Gateway — ~1 min
+### (2) Stripe — ~2 min
 
-1. Go to https://vercel.com/dashboard → **AI** tab in the top nav.
-2. Click **Get API Key** (or use an existing one scoped to vetly).
-3. Copy the key into `.env.local` as `AI_GATEWAY_API_KEY`.
+1. Make sure top-left toggle says **Test mode**.
+2. https://dashboard.stripe.com/test/apikeys → copy **Secret key** (`sk_test_…`) → `.env.local` as `STRIPE_SECRET_KEY`.
+3. https://dashboard.stripe.com/test/webhooks → **Add endpoint** → URL: `https://<your-vercel-url>/api/stripe/webhook`. Events: `checkout.session.completed`, `invoice.paid`. (You'll know the real URL after the first deploy; for now put any URL in — we update it after.)
+4. Reveal signing secret → copy `whsec_…` → `.env.local` as `STRIPE_WEBHOOK_SECRET`.
 
-### (3) Stripe test keys — ~2 min
+### (3) Vercel AI Gateway — ~1 min
 
-1. Go to https://dashboard.stripe.com/test/apikeys (make sure the top-left toggle says **Test mode**).
-2. Copy the **Secret key** (`sk_test_…`) into `.env.local` as `STRIPE_SECRET_KEY`.
-3. For the webhook, go to https://dashboard.stripe.com/test/webhooks → **Add endpoint**. Endpoint URL: `https://vetly.vercel.app/api/stripe/webhook` (or whatever Vercel gives you after first deploy — come back and update this). Events to send: `checkout.session.completed`, `invoice.paid`.
-4. After creating: click **Reveal signing secret** → copy `whsec_…` into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
+1. https://vercel.com/dashboard → **AI** tab → **Get API Key** (or grab an existing one).
+2. Paste into `.env.local` as `AI_GATEWAY_API_KEY`.
 
-### (4) Cron secret — 10 sec
-
-Generate any random string:
-```
-openssl rand -hex 32
-```
-Paste it into `.env.local` as `CRON_SECRET`. Vercel Cron will send this as a Bearer token to `/api/cron/refresh-domains`.
-
-### (5) App URL — 10 sec
-
-Once Vercel has given you a URL, put it in `.env.local` as `NEXT_PUBLIC_APP_URL`. For now, `http://localhost:3000` is fine — we update to the Vercel URL after first deploy.
-
-### (Optional 6) Google OAuth — ~3 min, skippable
-
-If you want Google sign-in in addition to email:
-1. https://console.cloud.google.com → new project `vetly` → **APIs & Services → Credentials → + Create credentials → OAuth client ID**.
-2. Application type: **Web application**. Authorised redirect URIs: `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`.
-3. Copy the client ID + client secret.
-4. Back in Supabase → **Authentication → Providers → Google** → paste both + enable.
-
----
-
-## Once `.env.local` is filled in
-
-Run the bootstrap. From the repo root:
+### (4) Cron + app URL — ~20 sec
 
 ```bash
-# Local dev
-./scripts/bootstrap.sh dev
-# → installs deps, starts http://localhost:3000
-
-# Production deploy
-./scripts/bootstrap.sh deploy
-# → uploads every var in .env.local to Vercel (prod + preview + dev)
-# → runs `vercel deploy --prod`
+openssl rand -hex 32  # → paste as CRON_SECRET
 ```
 
-Give me the production URL when the first deploy finishes and I'll update `NEXT_PUBLIC_APP_URL` + the Stripe webhook endpoint URL.
+Put `http://localhost:3000` as `NEXT_PUBLIC_APP_URL` for now — update to the Vercel URL after first deploy.
+
+### (Optional 5) Google OAuth — ~3 min, skippable
+
+Email sign-up works without it. If you want Google sign-in, follow the instructions in `.env.example`.
 
 ---
+
+## Once `.env.local` is filled
+
+From the repo root:
+
+```bash
+./scripts/bootstrap.sh dev      # local dev (http://localhost:3000)
+./scripts/bootstrap.sh deploy   # pushes env to Vercel + deploys to prod
+```
+
+Then:
+- Note the production URL Vercel prints.
+- Update `NEXT_PUBLIC_APP_URL` in `.env.local` + Vercel env vars to the production URL.
+- Update the Stripe webhook endpoint URL to `https://<prod-url>/api/stripe/webhook`.
+- Re-run `./scripts/bootstrap.sh deploy`.
 
 ## Installing the extension in Chrome
 
 ```bash
-pnpm build:extension
-# → writes to extension/dist
+pnpm build:extension   # writes to extension/dist
 ```
 
-Then:
-1. Chrome → `chrome://extensions`
-2. Toggle **Developer mode** top-right.
-3. **Load unpacked** → select `extension/dist`.
-4. Pin the Vetly icon to the toolbar.
-5. Open https://www.google.com/search?q=ivermectin+covid. You should see green badges on `nih.gov`, red badges on `mercola.com`.
+Then `chrome://extensions` → Developer mode → Load unpacked → `extension/dist`.
 
 ---
 
-## Golden path to walk before calling it done
+## Golden path to walk before calling Phase 2 done
 
-1. [ ] Sign up on the web app. Complete email flow.
-2. [ ] Install the extension. Search `ivermectin covid` — verify badges.
-3. [ ] Click a badge. Methodology panel opens with tier + reason.
-4. [ ] Click through to an article. Click Vetly toolbar icon → "Assess this page". Panel appears on that page with deep signals (AI-probability, citations, byline, freshness).
-5. [ ] Thumbs-up the assessment. Go to `/dashboard/feedback` on the web app — it should appear.
-6. [ ] Go to `/dashboard/support`. Donate $3 with Stripe test card `4242 4242 4242 4242`. Check that the thank-you banner shows and your donation appears in the history.
-7. [ ] Sign out, sign in as a second test user. Verify via Supabase SQL editor that the first user's donations and feedback are not visible (RLS check).
-8. [ ] Screenshot the SERP with badges. Save to `extension/screenshots/` for the Chrome Web Store listing.
+### Extension flow
+1. [ ] Sign up on the web app (email or Google).
+2. [ ] Install the extension.
+3. [ ] Search Google for `ivermectin covid`. Verify green on `nih.gov`, red on `mercola.com`.
+4. [ ] Click a badge → methodology panel opens with tier + reason.
+5. [ ] Click a result → click Vetly icon in toolbar → "Assess this page". Panel appears with deep signals.
+6. [ ] Thumbs-up the assessment → verify it appears on `/dashboard/feedback`.
+7. [ ] In extension Options, paste an Anthropic API key → click "Test key" → should say `✓ key works`. Enable BYOK. Repeat step 5 and confirm the request goes direct to Anthropic (check network tab — no `/api/assess` call).
+
+### Website flow (no extension)
+8. [ ] Visit `vetly.app/assess` and paste a URL (e.g. `https://www.nytimes.com/2026/…`). Wait for the assessment. Should redirect to `/a/<hash>`.
+9. [ ] Share the `/a/<hash>` link — opens with the full signal breakdown.
+10. [ ] Visit `/domain/nytimes.com` — see tier, score, recent assessments, dispute history.
+11. [ ] Visit `/explore` — see recent and lowest-trust assessments.
+12. [ ] Visit `/transparency` — see live stats.
+13. [ ] Visit `/methodology` — read through.
+14. [ ] File a test dispute at `/disputes?target_kind=domain&target_value=example.com`. Confirm it appears on the Supabase `disputes` table (and on `/domain/example.com`).
+
+### Billing
+15. [ ] `/dashboard/support` → $3 one-off → Stripe test card `4242 4242 4242 4242`. Check thank-you banner + donation history.
+16. [ ] Same with the monthly tier.
+
+### RLS safety check
+17. [ ] Create a second test user. Verify via SQL editor that user A's donations / feedback are not visible to user B.
+
+---
 
 ## Chrome Web Store submission
 
-The listing copy is in `extension/CHROME_WEB_STORE_LISTING.md` (already updated to reflect the donation model). You still need:
+Listing copy is in `extension/CHROME_WEB_STORE_LISTING.md`.
+
+You still need:
 - 5 screenshots at 1280×800.
-- A small promotional tile (440×280), large tile (920×680), and marquee (1400×560).
-- PNG icons at 16/32/48/128 px (generate from `extension/icons/icon.svg`).
+- Promotional tiles (440×280, 920×680, 1400×560).
+- Icons at 16/32/48/128 px PNG (generate from `extension/icons/icon.svg`).
 - A Chrome Web Store developer account ($5 one-off).
 
 Submit at https://chrome.google.com/webstore/devconsole.
 
 ---
 
-## Notes on decisions I had to make
+## Architecture summary (for future you)
 
-- **Stripe amounts** are in **USD** (cents) because Stripe AI Gateway suggested USD for global reach. If you'd rather quote in GBP, change `currency: "usd"` in `web/src/app/api/stripe/checkout/route.ts` — it's a two-line change.
-- **50 deep assessments per day per device** as the anti-abuse cap. Generous for individual users; tight enough that a scraper can't blow the LLM budget overnight. Edit `ANTI_ABUSE_LIMITS` in `packages/shared/src/index.ts` if it's ever wrong.
-- **No Pro-tier custom allow/deny lists**: everyone gets them. The options page already has the UI.
-- **Suggested donation amounts**: $3, $7, $20 (one-off); $3, $5, $10/mo (monthly). All pulled from `SUGGESTED_DONATION_AMOUNTS_CENTS` in shared.
+```
+vetly/
+├── extension/                     Chrome MV3 extension
+│   ├── src/content/               Content scripts (SERP + clickthrough)
+│   ├── src/background/            Service worker (API calls, BYOK branching)
+│   └── src/options/               Settings page (BYOK UI + allow/deny)
+├── web/                           Next.js 16 App Router
+│   └── src/app/
+│       ├── (public)               /, /assess, /domain, /a/[hash], /methodology,
+│       │                          /transparency, /explore, /disputes, /privacy
+│       ├── dashboard/             /dashboard/{,feedback,support,settings} (auth-gated)
+│       ├── api/
+│       │   ├── assess/            Server-side deep assessment (extension path)
+│       │   ├── assess-url/        Server-side deep assessment (public website path)
+│       │   ├── cache-lookup/      Hash-only cache check (BYOK)
+│       │   ├── cache-contribute/  BYOK result contribution
+│       │   ├── domain-reputation/ Batch domain lookup (extension SERP path)
+│       │   ├── disputes/          Dispute submission
+│       │   ├── feedback/          Thumbs up/down
+│       │   ├── stripe/            Checkout + portal + webhook
+│       │   └── cron/              Refresh domains daily
+│       └── auth/                  Sign in / sign up / callback
+├── packages/shared/               Isomorphic — imported by extension + web
+│   └── src/
+│       ├── index.ts               Zod schemas, types, constants
+│       ├── scoring.ts             Signal weights → score (pure)
+│       ├── heuristics.ts          Extract heuristic signals (pure)
+│       ├── url-hash.ts            Canonicalise + SHA-256 (Web Crypto)
+│       ├── byok.ts                Direct-to-Anthropic + tool-use schema
+│       └── seed.ts                Starter seed of ~50 well-known domains
+├── supabase/migrations/           0001_init, 0002_seed_domains, 0003_public_and_disputes
+├── scripts/
+│   ├── bootstrap.sh               pnpm install + env sync + deploy
+│   └── import-seed-domains.mjs    Full ~100k domain seed importer (one-off)
+└── vercel.ts                      Monorepo-aware root config
+```
+
+## Notes on decisions I made autonomously
+
+- **Anonymous users can use the website** — no login required for `/assess`, `/domain/*`, `/a/*`, etc. An IP-prefix-based quota prevents abuse (signed-in users get a personal quota).
+- **Public reads on `domain_reputations` and `page_assessments`** — they're the data the website is for; the previous "deny-all" policies were appropriate when only the extension read them via our API.
+- **Transparency page uses a `public_stats` SQL view** — live reads, no manual numbers. LLM cost estimate is hand-tuned to ~$0.002/call; will recalibrate with real billing.
+- **Disputes are public by design** — grounds + status + target are visible; submitter name/email are not. The resolution gets published on the target's domain page.
+- **USD currency** throughout (Stripe amounts). Flip to GBP in `web/src/app/api/stripe/checkout/route.ts` if you'd prefer.
+- **Anti-abuse cap stays at 50/day/device** even after Phase 2. BYOK users are uncapped.

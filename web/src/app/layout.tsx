@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SiteHeader, SiteFooter } from "@/components/site-header";
 
 export const metadata: Metadata = {
-  title: "Vetly — source-trust signals for Google search",
+  title: "Vetly — source-trust signals for the open web",
   description:
-    "Vetly annotates Google search results with a trust badge — green, amber, or red — based on publisher reputation, AI-generated-content probability, citations, freshness, and ad density. Signal, not gate.",
+    "Vetly rates publisher trust on a transparent methodology: AI-generated-content probability, citations, byline, freshness, ad density, editorial bias markers. Free for everyone, donation-supported. Chrome extension + web.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SiteHeader />
+        <div className="min-h-[calc(100vh-110px)]">
+          {children}
+        </div>
+        <SiteFooter />
+      </body>
     </html>
   );
 }

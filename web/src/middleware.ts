@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+/**
+ * Refresh the Supabase auth session cookie on navigations. All public
+ * pages (/, /domain/*, /assess, /a/*, /methodology, /transparency, /explore,
+ * /disputes, /privacy) work without a login. Only /dashboard/* is gated.
+ */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -9,26 +14,19 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
+        getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
-          for (const { name, value } of cookiesToSet) {
-            request.cookies.set(name, value);
-          }
+          for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
           response = NextResponse.next({ request });
-          for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
-          }
+          for (const { name, value, options } of cookiesToSet) response.cookies.set(name, value, options);
         },
       },
     },
   );
-
   await supabase.auth.getUser();
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/domain-reputation|api/assess|api/feedback).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
 };
