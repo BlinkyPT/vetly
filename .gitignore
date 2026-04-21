@@ -1,0 +1,30 @@
+node_modules
+.DS_Store
+*.log
+
+# builds
+dist
+.next
+.turbo
+.vercel
+out
+
+# env
+.env
+.env.local
+.env.*.local
+
+# editor
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# chrome extension packaging
+*.crx
+*.pem
+extension.zip
+
+# supabase
+supabase/.temp
+supabase/.branches

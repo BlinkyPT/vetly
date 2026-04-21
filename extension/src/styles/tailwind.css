@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vetly-green: #1f9d55;
+  --color-vetly-amber: #d97706;
+  --color-vetly-red: #dc2626;
+  --color-vetly-grey: #6b7280;
+}

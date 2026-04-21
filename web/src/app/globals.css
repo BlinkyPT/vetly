@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-vetly-green: #1f9d55;
+  --color-vetly-amber: #d97706;
+  --color-vetly-red: #dc2626;
+  --color-vetly-grey: #6b7280;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-white text-slate-900 antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
