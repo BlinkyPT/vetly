@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { HeuristicSignals, PageAssessment } from "@vetly/shared";
+import type { HeuristicSignals, PageAssessment, FacetKey } from "@vetly/shared";
 import { computeHeuristics } from "@vetly/shared/heuristics";
+import { estimateTheta, observationsFromSignals, type IRTModel } from "@vetly/shared/irt";
+import { generateCounterfactuals } from "@vetly/shared/counterfactuals";
+import irtParamsV01 from "@vetly/shared/irt-params" with { type: "json" };
 import { hashUrl, extractDomain, normaliseUrl } from "@/lib/url-hash";
 import { scorePage } from "@/lib/scoring";
 import { classifyContentLLM } from "@/lib/ai";
@@ -9,6 +12,8 @@ import { safeFetch } from "@/lib/safe-fetch";
 import { extractFromHtml } from "@/lib/extract";
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
 import { checkDeepAssessmentQuota, incrementDeepAssessmentUsage } from "@/lib/quota";
+
+const IRT_MODEL = irtParamsV01 as unknown as IRTModel;
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -96,24 +101,33 @@ export async function POST(req: Request) {
     title: assessRequest.title,
     content: assessRequest.content,
   });
-  const { score, tier, weighted_signals } = scorePage(heuristic, llm, assessRequest.word_count);
+  const { weighted_signals } = scorePage(heuristic, llm, assessRequest.word_count);
+  const observations = observationsFromSignals(heuristic, llm, assessRequest.word_count);
+  const irt = estimateTheta(observations, IRT_MODEL);
+  const counterfactuals = generateCounterfactuals(observations, IRT_MODEL, irt.score);
 
   const assessment: PageAssessment = {
     url: normaliseUrl(finalUrl),
     url_hash: urlHash,
-    score,
-    tier,
+    score: irt.score,
+    tier: irt.tier,
     heuristic,
     llm,
     weighted_signals,
     assessed_at: new Date().toISOString(),
+    theta_mean: irt.theta_mean,
+    theta_sem: irt.theta_sem,
+    tier_certainty: irt.tier_certainty,
+    facets: irt.facets as Record<FacetKey, typeof irt.facets[keyof typeof irt.facets]>,
+    counterfactuals,
+    algorithm_version: IRT_MODEL.version,
   };
 
   await service.from("page_assessments").upsert({
     url_hash: urlHash,
     url: assessment.url,
-    score,
-    signals: { heuristic, llm, weighted_signals },
+    score: irt.score,
+    signals: { heuristic, llm, weighted_signals, irt, observations },
     ai_probability: llm.ai_probability,
     assessed_at: assessment.assessed_at,
     full: assessment,

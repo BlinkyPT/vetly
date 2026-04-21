@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { TrustBadge } from "@/components/trust-badge";
 import { SignalList } from "@/components/signal-list";
+import { FacetGrid } from "@/components/facet-grid";
+import { CounterfactualList } from "@/components/counterfactual-list";
+import { UncertaintyBar } from "@/components/uncertainty-bar";
 import type { PageAssessment } from "@vetly/shared";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +40,7 @@ export default async function PermalinkPage({ params }: { params: Promise<{ hash
   }
   const assessment = data.full as PageAssessment;
   const domain = new URL(assessment.url).hostname.replace(/^www\./, "");
+  const hasPsychometrics = assessment.theta_mean !== undefined && assessment.facets;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10 space-y-6">
@@ -50,15 +54,39 @@ export default async function PermalinkPage({ params }: { params: Promise<{ hash
 
       <a href={assessment.url} target="_blank" rel="noreferrer" className="block text-xs text-slate-500 underline truncate">{assessment.url}</a>
 
+      {hasPsychometrics && (
+        <UncertaintyBar
+          score={assessment.score}
+          sem={assessment.theta_sem ?? 0.3}
+          certainty={assessment.tier_certainty ?? 0.5}
+        />
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Metric label="Vetly score" value={`${Math.round(assessment.score * 100)} / 100`} />
+        <Metric label="Overall score" value={`${Math.round(assessment.score * 100)} / 100`} />
         <Metric label="AI-content probability" value={`${Math.round(assessment.llm.ai_probability * 100)}%`} />
         <Metric label="Citations" value={String(assessment.heuristic.citation_count)} />
       </div>
 
+      {hasPsychometrics && assessment.facets && (
+        <section>
+          <h2 className="text-lg font-semibold">Facet sub-scores</h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Source-trust is four-factor: factual rigour, editorial integrity, temporal currency, authority alignment. Weight them yourself for your use-case.
+          </p>
+          <div className="mt-4">
+            <FacetGrid facets={assessment.facets} />
+          </div>
+        </section>
+      )}
+
+      {assessment.counterfactuals && assessment.counterfactuals.length > 0 && (
+        <CounterfactualList items={assessment.counterfactuals} />
+      )}
+
       <section>
         <h2 className="text-lg font-semibold">Signals</h2>
-        <p className="text-sm text-slate-500 mt-1">Every signal that contributed to the score, with its raw value, its weight, and its contribution.</p>
+        <p className="text-sm text-slate-500 mt-1">Every signal that contributed to the score, with its raw value, weight, and contribution.</p>
         <div className="mt-4">
           <SignalList signals={assessment.weighted_signals} />
         </div>
@@ -75,7 +103,8 @@ export default async function PermalinkPage({ params }: { params: Promise<{ hash
       </section>
 
       <footer className="text-xs text-slate-500">
-        Assessed {new Date(assessment.assessed_at).toLocaleString()}. Methodology: <Link href="/methodology" className="underline">here</Link>.
+        Assessed {new Date(assessment.assessed_at).toLocaleString()} · algorithm {assessment.algorithm_version ?? "v0 (CTT)"}.
+        Methodology: <Link href="/methodology" className="underline">here</Link>.
       </footer>
     </main>
   );

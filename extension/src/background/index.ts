@@ -6,8 +6,13 @@ import { lookupDomain } from "@/lib/seed";
 import { hashUrl, extractDomain, normaliseUrl } from "@vetly/shared/url-hash";
 import { computeHeuristics } from "@vetly/shared/heuristics";
 import { scorePage } from "@vetly/shared/scoring";
+import { estimateTheta, observationsFromSignals, type IRTModel } from "@vetly/shared/irt";
+import { generateCounterfactuals } from "@vetly/shared/counterfactuals";
+import irtParamsV01 from "@vetly/shared/irt-params" with { type: "json" };
 import { classifyWithUserKey } from "@vetly/shared/byok";
-import type { PageAssessment, AssessRequest } from "@vetly/shared";
+import type { PageAssessment, AssessRequest, FacetKey } from "@vetly/shared";
+
+const IRT_MODEL = irtParamsV01 as unknown as IRTModel;
 
 const API = __VETLY_API_URL__;
 
@@ -64,17 +69,26 @@ async function byokAssess(req: AssessRequest): Promise<
   const heuristic = computeHeuristics(req, bundledTier);
 
   // 4. Scoring, purely local.
-  const { score, tier, weighted_signals } = scorePage(heuristic, llm, req.word_count);
+  const { weighted_signals } = scorePage(heuristic, llm, req.word_count);
+  const observations = observationsFromSignals(heuristic, llm, req.word_count);
+  const irt = estimateTheta(observations, IRT_MODEL);
+  const counterfactuals = generateCounterfactuals(observations, IRT_MODEL, irt.score);
 
   const assessment: PageAssessment = {
     url: normaliseUrl(req.url),
     url_hash: urlHash,
-    score,
-    tier,
+    score: irt.score,
+    tier: irt.tier,
     heuristic,
     llm,
     weighted_signals,
     assessed_at: new Date().toISOString(),
+    theta_mean: irt.theta_mean,
+    theta_sem: irt.theta_sem,
+    tier_certainty: irt.tier_certainty,
+    facets: irt.facets as Record<FacetKey, typeof irt.facets[keyof typeof irt.facets]>,
+    counterfactuals,
+    algorithm_version: IRT_MODEL.version,
   };
 
   // 5. Optional: contribute back to the shared cache (opt-in).

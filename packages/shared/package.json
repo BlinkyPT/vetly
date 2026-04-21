@@ -11,7 +11,10 @@
     "./scoring": "./src/scoring.ts",
     "./byok": "./src/byok.ts",
     "./url-hash": "./src/url-hash.ts",
-    "./heuristics": "./src/heuristics.ts"
+    "./heuristics": "./src/heuristics.ts",
+    "./irt": "./src/irt.ts",
+    "./counterfactuals": "./src/counterfactuals.ts",
+    "./irt-params": "./src/irt-params-v0.1.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

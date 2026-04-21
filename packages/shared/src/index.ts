@@ -59,6 +59,29 @@ export const WeightedSignal = z.object({
 });
 export type WeightedSignal = z.infer<typeof WeightedSignal>;
 
+export const FacetKey = z.enum([
+  "factual_rigour",
+  "editorial_integrity",
+  "temporal_currency",
+  "authority_alignment",
+]);
+export type FacetKey = z.infer<typeof FacetKey>;
+
+export const FacetScore = z.object({
+  theta_mean: z.number(),
+  theta_sem: z.number(),
+  score: z.number().min(0).max(1),
+  n_items: z.number(),
+});
+
+export const Counterfactual = z.object({
+  key: z.string(),
+  label: z.string(),
+  suggestion: z.string(),
+  delta_score: z.number(),
+});
+export type Counterfactual = z.infer<typeof Counterfactual>;
+
 export const PageAssessment = z.object({
   url: z.string().url(),
   url_hash: z.string(),
@@ -68,6 +91,15 @@ export const PageAssessment = z.object({
   llm: LLMSignals,
   weighted_signals: z.array(WeightedSignal),
   assessed_at: z.string(),
+
+  // v0.1+ psychometric outputs (optional for backwards compatibility with
+  // cached rows written before the IRT refactor).
+  theta_mean: z.number().optional(),
+  theta_sem: z.number().optional(),
+  tier_certainty: z.number().min(0).max(1).optional(),
+  facets: z.record(FacetKey, FacetScore).optional(),
+  counterfactuals: z.array(Counterfactual).optional(),
+  algorithm_version: z.string().optional(),
 });
 export type PageAssessment = z.infer<typeof PageAssessment>;
 
