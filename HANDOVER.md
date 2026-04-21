@@ -1,86 +1,139 @@
-# Vetly — handover checklist
+# Vetly — handover (donation model)
 
-The code is complete and in place. The remaining work is **provisioning** — it can't be done without you because it requires account creation and pasting credentials.
+## What I've already done for you
 
-## 1. Credentials I need you to create (fresh accounts, per your isolation rule)
+- **Code**: full scaffold, 80 files — monorepo, Chrome MV3 extension with shadow-DOM badge injection, Next.js 16 web app, Supabase schema + RLS, Stripe donation checkout, Vercel AI Gateway integration, Chrome Web Store listing copy, privacy policy.
+- **GitHub**: repo created at https://github.com/BlinkyPT/vetly, two commits pushed.
+- **Vercel**: project `aandj/vetly` created and linked to the GitHub repo. Auto-deploys on every push to `main`. Root-level `vercel.ts` tells it this is a monorepo with the Next.js app in `web/`.
+- **Donation pivot**: no paid tier. All features free. Stripe Checkout now runs in one-off `payment` mode (default) or `subscription` mode for monthly supporters — but nothing is gated behind payment. Rate limit of 50 deep assessments/day per device is a cost-protection measure, not a paywall.
 
-| Service | What I need | Where to create it |
+## What I can't do on your behalf (and why)
+
+Three things genuinely require you, not code, to sign off on:
+
+| | What I need | Why I can't do it |
 |---|---|---|
-| Supabase | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | https://supabase.com — new project called `vetly` |
-| Vercel | Project linked to a fresh GitHub repo; `AI_GATEWAY_API_KEY` from Vercel AI Gateway | https://vercel.com — new project called `vetly` |
-| GitHub | New repo called `vetly` | https://github.com/new |
-| Stripe (test mode) | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_PRO` | https://dashboard.stripe.com — new account or org, test keys only |
-| Google OAuth | `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET` | Google Cloud Console → OAuth consent + credentials |
+| 1 | A fresh **Supabase project** called `vetly` | Needs you clicking "New project" in your Supabase dashboard; project-creation API keys are scoped to you, not me. |
+| 2 | A **Stripe test secret key** + **webhook signing secret** | Stripe requires legal identity verification on the account owner — not bypassable. |
+| 3 | A **Vercel AI Gateway API key** | Personal key, scoped to your Vercel account. |
 
-Paste them into `.env.local` (copied from `.env.example`). The app will read from there in dev.
+Optional: **Google OAuth** (only if you want Google sign-in as well as email). Email sign-up works without it.
 
-## 2. Install + run locally
-
-```bash
-cd /Users/jorgecampos/Desktop/Coding/vetly
-pnpm install
-cp .env.example .env.local   # fill in credentials from step 1
-pnpm dev:web                 # http://localhost:3000
-pnpm dev:extension           # load extension/dist unpacked in Chrome
-```
-
-To install the unpacked extension in Chrome:
-1. Open `chrome://extensions`.
-2. Toggle **Developer mode** on.
-3. Click **Load unpacked** → select `extension/dist`.
-
-## 3. Apply the Supabase schema
-
-Either via the Supabase CLI (`supabase db push`) from the `supabase/` directory, or by pasting the contents of `supabase/migrations/0001_init.sql` and `0002_seed_domains.sql` into the SQL editor in the Supabase dashboard.
-
-## 4. Configure Stripe
-
-1. In Stripe (test mode): create a Product called "Vetly Pro", add a recurring price of $4.99/month. Copy the `price_...` ID into `STRIPE_PRICE_ID_PRO`.
-2. Set up the webhook: `https://vetly.app/api/stripe/webhook` (or the preview URL) with events `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`. Paste the signing secret into `STRIPE_WEBHOOK_SECRET`.
-
-## 5. Deploy
-
-```bash
-vercel link            # link to the new Vercel project
-vercel env pull        # pull env vars down for local
-vercel deploy --prod   # first production deploy
-```
-
-`vercel.ts` in `web/` is already set up; the build command is `pnpm --filter @vetly/web build`.
-
-## 6. Golden path to verify
-
-Do this yourself before declaring the MVP done (per your definition of done):
-
-1. [ ] Create an account at https://vetly.app/auth/sign-up.
-2. [ ] Install the extension from `extension/dist`.
-3. [ ] Run a Google search for something topical (e.g. "ivermectin covid"). Verify:
-   - [ ] Green badges next to `nih.gov`, `nejm.org`.
-   - [ ] Red badges next to `naturalnews.com`, `mercola.com`.
-   - [ ] Amber badges next to `medium.com`, `reddit.com`.
-4. [ ] Click a badge. Methodology panel opens with signals. Close it.
-5. [ ] Click a result. On the landing page, open the Vetly popup → "Assess this page". Panel returns with AI-probability, citations, byline, etc.
-6. [ ] Thumbs-up the assessment. Go to `/dashboard/feedback` — it should appear.
-7. [ ] Hit the free-tier limit (11 deep assessments). The next one should return 402 and push you to `/dashboard/subscription`.
-8. [ ] Upgrade with Stripe test card `4242 4242 4242 4242`. Deep assessment now works.
-9. [ ] Create a second test user. Verify via the SQL editor that user A's `user_feedback` rows are not visible to user B (RLS check).
-10. [ ] Screenshot the SERP with badges. Save to `extension/screenshots/`.
-
-## 7. Submit to the Chrome Web Store
-
-The listing copy is in `extension/CHROME_WEB_STORE_LISTING.md`. You still need:
-- Screenshots (5x 1280×800)
-- Promotional tiles (440×280 small, 920×680 large, 1400×560 marquee)
-- The final icon PNGs (16/32/48/128) generated from `extension/icons/icon.svg`
-- A Chrome Web Store developer account ($5 one-off)
-
-Submit from https://chrome.google.com/webstore/devconsole.
+Your total clicking: **about 10 minutes**, all copy-paste.
 
 ---
 
-## Notes on decisions the brief left implicit
+## The 10-minute checklist
 
-- **Cron auth**: `/api/cron/refresh-domains` checks `Authorization: Bearer $CRON_SECRET`. Set `CRON_SECRET` in Vercel env vars so the daily cron (configured in `web/vercel.ts`) is protected.
-- **AI Gateway model**: I used `anthropic/claude-haiku-4-5` as a plain provider/model string per your brief. Volume is high so Haiku keeps cost down; swap to Sonnet only for manual re-evaluation of disputed domains.
-- **Domain-reputation live computation**: The MVP's `/api/domain-reputation` returns `unknown` for uncached domains and writes a stub row so the daily cron can enrich it. A full WHOIS + cert pipeline is a follow-up — the signal interfaces are already in place, so it slots in cleanly.
-- **Extension icon PNGs**: the SVG master is at `extension/icons/icon.svg`. You need to generate 16/32/48/128 px PNGs before first load; Chrome tolerates the missing files in dev but the build will warn.
+### (1) Supabase — ~4 min
+
+1. Go to https://supabase.com/dashboard.
+2. Click **New project**. Name it `vetly`. Pick any region near the UK (e.g. London). Set a strong DB password and save it in 1Password.
+3. Wait ~1 min for the project to provision.
+4. In the left sidebar: **SQL Editor** → **+ New query**.
+5. Open `supabase/migrations/0001_init.sql` from this repo, copy the whole file, paste it into the SQL editor, click **Run**. Repeat with `0002_seed_domains.sql`.
+6. Left sidebar: **Project Settings → API**. Copy three values into `.env.local` (see section below):
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - anon / public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - service_role key (click to reveal) → `SUPABASE_SERVICE_ROLE_KEY`
+7. Left sidebar: **Authentication → Providers → Email**. Toggle off "Confirm email" for dev ease (you can re-enable later).
+
+### (2) Vercel AI Gateway — ~1 min
+
+1. Go to https://vercel.com/dashboard → **AI** tab in the top nav.
+2. Click **Get API Key** (or use an existing one scoped to vetly).
+3. Copy the key into `.env.local` as `AI_GATEWAY_API_KEY`.
+
+### (3) Stripe test keys — ~2 min
+
+1. Go to https://dashboard.stripe.com/test/apikeys (make sure the top-left toggle says **Test mode**).
+2. Copy the **Secret key** (`sk_test_…`) into `.env.local` as `STRIPE_SECRET_KEY`.
+3. For the webhook, go to https://dashboard.stripe.com/test/webhooks → **Add endpoint**. Endpoint URL: `https://vetly.vercel.app/api/stripe/webhook` (or whatever Vercel gives you after first deploy — come back and update this). Events to send: `checkout.session.completed`, `invoice.paid`.
+4. After creating: click **Reveal signing secret** → copy `whsec_…` into `.env.local` as `STRIPE_WEBHOOK_SECRET`.
+
+### (4) Cron secret — 10 sec
+
+Generate any random string:
+```
+openssl rand -hex 32
+```
+Paste it into `.env.local` as `CRON_SECRET`. Vercel Cron will send this as a Bearer token to `/api/cron/refresh-domains`.
+
+### (5) App URL — 10 sec
+
+Once Vercel has given you a URL, put it in `.env.local` as `NEXT_PUBLIC_APP_URL`. For now, `http://localhost:3000` is fine — we update to the Vercel URL after first deploy.
+
+### (Optional 6) Google OAuth — ~3 min, skippable
+
+If you want Google sign-in in addition to email:
+1. https://console.cloud.google.com → new project `vetly` → **APIs & Services → Credentials → + Create credentials → OAuth client ID**.
+2. Application type: **Web application**. Authorised redirect URIs: `https://<your-supabase-project-ref>.supabase.co/auth/v1/callback`.
+3. Copy the client ID + client secret.
+4. Back in Supabase → **Authentication → Providers → Google** → paste both + enable.
+
+---
+
+## Once `.env.local` is filled in
+
+Run the bootstrap. From the repo root:
+
+```bash
+# Local dev
+./scripts/bootstrap.sh dev
+# → installs deps, starts http://localhost:3000
+
+# Production deploy
+./scripts/bootstrap.sh deploy
+# → uploads every var in .env.local to Vercel (prod + preview + dev)
+# → runs `vercel deploy --prod`
+```
+
+Give me the production URL when the first deploy finishes and I'll update `NEXT_PUBLIC_APP_URL` + the Stripe webhook endpoint URL.
+
+---
+
+## Installing the extension in Chrome
+
+```bash
+pnpm build:extension
+# → writes to extension/dist
+```
+
+Then:
+1. Chrome → `chrome://extensions`
+2. Toggle **Developer mode** top-right.
+3. **Load unpacked** → select `extension/dist`.
+4. Pin the Vetly icon to the toolbar.
+5. Open https://www.google.com/search?q=ivermectin+covid. You should see green badges on `nih.gov`, red badges on `mercola.com`.
+
+---
+
+## Golden path to walk before calling it done
+
+1. [ ] Sign up on the web app. Complete email flow.
+2. [ ] Install the extension. Search `ivermectin covid` — verify badges.
+3. [ ] Click a badge. Methodology panel opens with tier + reason.
+4. [ ] Click through to an article. Click Vetly toolbar icon → "Assess this page". Panel appears on that page with deep signals (AI-probability, citations, byline, freshness).
+5. [ ] Thumbs-up the assessment. Go to `/dashboard/feedback` on the web app — it should appear.
+6. [ ] Go to `/dashboard/support`. Donate $3 with Stripe test card `4242 4242 4242 4242`. Check that the thank-you banner shows and your donation appears in the history.
+7. [ ] Sign out, sign in as a second test user. Verify via Supabase SQL editor that the first user's donations and feedback are not visible (RLS check).
+8. [ ] Screenshot the SERP with badges. Save to `extension/screenshots/` for the Chrome Web Store listing.
+
+## Chrome Web Store submission
+
+The listing copy is in `extension/CHROME_WEB_STORE_LISTING.md` (already updated to reflect the donation model). You still need:
+- 5 screenshots at 1280×800.
+- A small promotional tile (440×280), large tile (920×680), and marquee (1400×560).
+- PNG icons at 16/32/48/128 px (generate from `extension/icons/icon.svg`).
+- A Chrome Web Store developer account ($5 one-off).
+
+Submit at https://chrome.google.com/webstore/devconsole.
+
+---
+
+## Notes on decisions I had to make
+
+- **Stripe amounts** are in **USD** (cents) because Stripe AI Gateway suggested USD for global reach. If you'd rather quote in GBP, change `currency: "usd"` in `web/src/app/api/stripe/checkout/route.ts` — it's a two-line change.
+- **50 deep assessments per day per device** as the anti-abuse cap. Generous for individual users; tight enough that a scraper can't blow the LLM budget overnight. Edit `ANTI_ABUSE_LIMITS` in `packages/shared/src/index.ts` if it's ever wrong.
+- **No Pro-tier custom allow/deny lists**: everyone gets them. The options page already has the UI.
+- **Suggested donation amounts**: $3, $7, $20 (one-off); $3, $5, $10/mo (monthly). All pulled from `SUGGESTED_DONATION_AMOUNTS_CENTS` in shared.
