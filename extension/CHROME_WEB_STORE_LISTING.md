@@ -30,7 +30,12 @@ There is a daily cap on deep assessments (50 per device) — that exists purely 
 Vetly never hides or removes results. You stay in control. We just annotate.
 
 ### Privacy
-Vetly reads the list of URLs on the SERP so it can render the badge. When you open a deep assessment, the main article text is sent to our server (not the full page, not your cookies, not your history). We never sell your data. Full policy at https://vetly.app/privacy.
+Vetly reads the list of URLs on the SERP so it can render the badge. When you open a deep assessment, the main article text is sent to our server (not the full page, not your cookies, not your history). We never sell your data.
+
+### BYOK mode — stronger privacy
+If you prefer, paste your own Anthropic API key in the extension settings. Vetly will call Claude directly from your browser — **page content never touches our server**. You pay Anthropic directly, nothing to us. Perfect for journalists, lawyers, and anyone whose queries are sensitive.
+
+Full privacy policy at https://vetly.app/privacy.
 
 ## Category
 Productivity

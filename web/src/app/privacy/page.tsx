@@ -27,6 +27,9 @@ export default function PrivacyPage() {
       <h2>AI processing</h2>
       <p>Content you submit for deep assessment is passed to Claude Haiku 4.5 via the Vercel AI Gateway. The gateway operates with zero data retention — the content is not used for training and is not retained beyond the single request.</p>
 
+      <h2>BYOK mode — stronger privacy</h2>
+      <p>If you enable <strong>Bring Your Own Key</strong> in the extension&apos;s settings, Vetly will call Anthropic directly from your browser using your own API key. In that mode, <strong>page content never reaches our server</strong>. The only request we see from you during a deep assessment is a hashed URL lookup (a SHA-256 fingerprint of the page URL, no content) to check whether another BYOK user has already scored that page. If you opt in to the community cache, the score and signals from your assessment are shared back anonymously — never the page content itself.</p>
+
       <h2>You can delete your data</h2>
       <p>Sign in and email <a href="mailto:privacy@vetly.app">privacy@vetly.app</a>, or use Supabase Auth&apos;s built-in delete flow from Settings. Shared page-assessment cache entries are anonymous and not linked to you.</p>
     </main>

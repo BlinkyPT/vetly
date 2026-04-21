@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { AssessRequest, type HeuristicSignals, type PageAssessment } from "@vetly/shared";
 import { hashUrl, extractDomain, normaliseUrl } from "@/lib/url-hash";
 import { scorePage } from "@/lib/scoring";
+import { computeHeuristics } from "@vetly/shared/heuristics";
 import { classifyContentLLM } from "@/lib/ai";
 import { createSupabaseServerClient, createSupabaseServiceClient } from "@/lib/supabase/server";
 import { checkDeepAssessmentQuota, incrementDeepAssessmentUsage } from "@/lib/quota";
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   }
 
   const service = createSupabaseServiceClient();
-  const urlHash = hashUrl(parsed.data.url);
+  const urlHash = await hashUrl(parsed.data.url);
 
   // Check cache first — shared across users.
   const { data: cached } = await service
@@ -79,27 +80,10 @@ export async function POST(req: Request) {
     .eq("domain", domain.replace(/^www\./, ""))
     .maybeSingle();
 
-  const publishedAt = parsed.data.published_at ?? null;
-  const freshnessDays = publishedAt
-    ? Math.max(0, Math.floor((Date.now() - new Date(publishedAt).getTime()) / (1000 * 60 * 60 * 24)))
-    : null;
-  const adRatio = parsed.data.word_count > 0
-    ? parsed.data.ad_slot_count / Math.max(1, parsed.data.word_count / 100)
-    : null;
-
-  const heuristic: HeuristicSignals = {
-    domain_age_years: null,
-    https_valid: parsed.data.url.startsWith("https://"),
-    published_at: publishedAt,
-    freshness_days: freshnessDays,
-    ad_to_content_ratio: adRatio,
-    has_byline: !!parsed.data.author,
-    author_name: parsed.data.author ?? null,
-    citation_count: parsed.data.outlinks.length,
-    bundled_tier: (domainRow?.tier as HeuristicSignals["bundled_tier"]) ?? "unknown",
-    language_confidence: 0.9,
-    locale_consistent: true,
-  };
+  const heuristic: HeuristicSignals = computeHeuristics(
+    parsed.data,
+    (domainRow?.tier as HeuristicSignals["bundled_tier"]) ?? "unknown",
+  );
 
   const llm = await classifyContentLLM({
     url: parsed.data.url,
